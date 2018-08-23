@@ -44,7 +44,9 @@ outputOutput = function(){
   #Classify final output object
   class(output) <- 'jagsUI'
   
-  save(output, file = paste0(savePath, fileTemplate, index, '.Rdata'))
+  # Save to folder. Not *completely* necessary, because the backup will contain the same information, but it is nice to format.
+  try(save(output, file = paste0(savePath, fileTemplate, index, '.Rdata')))
+  
   
 }
 
