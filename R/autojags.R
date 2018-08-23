@@ -2,67 +2,79 @@
 autojags <- function(data,inits=NULL,parameters.to.save,model.file,n.chains,n.adapt=NULL,iter.increment=1000,n.burnin=0,n.thin=1,
                      save.all.iter=FALSE,modules=c('glm'),factories=NULL,parallel=FALSE,n.cores=NULL,DIC=TRUE,store.data=FALSE,codaOnly=FALSE,seed=NULL,
                     bugs.format=FALSE,Rhat.limit=1.1,max.iter=100000,verbose=TRUE){
+  
+  if(!continue){
+    #Pass input data and parameter list through error check / processing
+    data.check <- process.input(data,parameters.to.save,inits,n.chains,(n.burnin + iter.increment),
+                                n.burnin,n.thin,n.cores,DIC=DIC,autojags=TRUE,max.iter=max.iter,
+                                verbose=verbose,parallel=parallel,seed=seed)    
+    data <- data.check$data
+    parameters.to.save <- data.check$params
+    inits <- data.check$inits
+    if(parallel){n.cores <- data.check$n.cores}
     
-  #Pass input data and parameter list through error check / processing
-  data.check <- process.input(data,parameters.to.save,inits,n.chains,(n.burnin + iter.increment),
-                              n.burnin,n.thin,n.cores,DIC=DIC,autojags=TRUE,max.iter=max.iter,
-                              verbose=verbose,parallel=parallel,seed=seed)    
-  data <- data.check$data
-  parameters.to.save <- data.check$params
-  inits <- data.check$inits
-  if(parallel){n.cores <- data.check$n.cores}
-  
-  #Save start time
-  start.time <- Sys.time()
-  
-  #Note if saving all iterations
-  if(save.all.iter&verbose){cat('Note: ALL iterations will be included in final posterior.\n\n')}
-  
-  #Initial model run
-  
-  #Parallel
-  
-  if(verbose){cat('Burn-in + Update 1',' (',(n.burnin + iter.increment),')',sep="")}
-  
-  if(parallel){
+    #Save start time
+    start.time <- Sys.time()
     
-    par <- run.parallel(data,inits,parameters.to.save,model.file,n.chains,n.adapt,n.iter=(n.burnin + iter.increment),n.burnin,n.thin,
-                        modules=modules,factories=factories,DIC=DIC,verbose=FALSE,n.cores=n.cores) 
-    samples <- par$samples
-    mod <- par$model
-    total.adapt <- par$total.adapt
-    sufficient.adapt <- par$sufficient.adapt
+    #Note if saving all iterations
+    if(save.all.iter&verbose){cat('Note: ALL iterations will be included in final posterior.\n\n')}
+    
+    #Initial model run
+    
+    #Parallel
+    
+    if(verbose){cat('Burn-in + Update 1',' (',(n.burnin + iter.increment),')',sep="")}
+    
+    if(parallel){
+      
+      par <- run.parallel(data,inits,parameters.to.save,model.file,n.chains,n.adapt,n.iter=(n.burnin + iter.increment),n.burnin,n.thin,
+                          modules=modules,factories=factories,DIC=DIC,verbose=FALSE,n.cores=n.cores) 
+      samples <- par$samples
+      mod <- par$model
+      total.adapt <- par$total.adapt
+      sufficient.adapt <- par$sufficient.adapt
+      
+    } else {
+      
+      #Not parallel  
+      
+      set.modules(modules,DIC)
+      set.factories(factories)
+      
+      rjags.output <- run.model(model.file,data,inits,parameters.to.save,n.chains,n.iter=(n.burnin + iter.increment),n.burnin,n.thin,n.adapt,
+                                verbose=FALSE)
+      samples <- rjags.output$samples
+      mod <- rjags.output$m
+      total.adapt <- rjags.output$total.adapt
+      sufficient.adapt <- rjags.output$sufficient.adapt
+      
+    }
+    
+    #Combine mcmc info into list
+    n.samples <- dim(samples[[1]])[1] * n.chains
+    mcmc.info <- list(n.chains,n.adapt=total.adapt,sufficient.adapt=sufficient.adapt,n.iter=(n.burnin + iter.increment),n.burnin,n.thin,n.samples,time)
+    names(mcmc.info) <- c('n.chains','n.adapt','sufficient.adapt','n.iter','n.burnin','n.thin','n.samples','elapsed.mins')
+    if(parallel){mcmc.info$n.cores <- n.cores}
+    
+    test <- test.Rhat(samples,Rhat.limit,codaOnly,verbose=verbose)
+    reach.max <- FALSE
+    index = 1
+    
+    if(mcmc.info$n.iter>=max.iter){
+      reach.max <- TRUE
+      if(verbose){cat('\nMaximum iterations reached.\n\n')}
+    }
+    # Save backup here
+    save.image(file = 'latestBackup.Rdata')
     
   } else {
+   
+    # If continuing from previous backup, load it here.
     
-  #Not parallel  
-    
-    set.modules(modules,DIC)
-    set.factories(factories)
-    
-    rjags.output <- run.model(model.file,data,inits,parameters.to.save,n.chains,n.iter=(n.burnin + iter.increment),n.burnin,n.thin,n.adapt,
-                              verbose=FALSE)
-    samples <- rjags.output$samples
-    mod <- rjags.output$m
-    total.adapt <- rjags.output$total.adapt
-    sufficient.adapt <- rjags.output$sufficient.adapt
+    load(file = paste0(savePath, 'latestBackup.Rdata'))
     
   }
   
-  #Combine mcmc info into list
-  n.samples <- dim(samples[[1]])[1] * n.chains
-  mcmc.info <- list(n.chains,n.adapt=total.adapt,sufficient.adapt=sufficient.adapt,n.iter=(n.burnin + iter.increment),n.burnin,n.thin,n.samples,time)
-  names(mcmc.info) <- c('n.chains','n.adapt','sufficient.adapt','n.iter','n.burnin','n.thin','n.samples','elapsed.mins')
-  if(parallel){mcmc.info$n.cores <- n.cores}
-  
-  test <- test.Rhat(samples,Rhat.limit,codaOnly,verbose=verbose)
-  reach.max <- FALSE
-  index = 1
-  
-  if(mcmc.info$n.iter>=max.iter){
-    reach.max <- TRUE
-    if(verbose){cat('\nMaximum iterations reached.\n\n')}
-  }
   
   while(test==TRUE && reach.max==FALSE){
         
@@ -120,59 +132,64 @@ autojags <- function(data,inits=NULL,parameters.to.save,model.file,n.chains,n.ad
       reach.max <- TRUE
       if(verbose){cat('\nMaximum iterations reached.\n\n')}
     }
-  }
+    
+    # Save backup here, normally where loop ends
+    save.image(file = paste0(savePath, 'latestBackup.Rdata'))
+    
+  } # End while 
   
-  #Get more info about MCMC run
-  end.time <- Sys.time() 
-  mcmc.info$elapsed.mins <- round(as.numeric(end.time-start.time,units="mins"),digits=3)
-  date <- start.time
-  
-  #Reorganize JAGS output to match input parameter order
-  samples <- order.params(samples,parameters.to.save,DIC,verbose=verbose)
-  
-  #Convert rjags output to jagsUI form 
-  output <- process.output(samples,DIC=DIC,codaOnly,verbose=verbose) 
-  if(is.null(output)){
-    output <- list()
-    samples <- order.params(samples,parameters.to.save,DIC,verbose=verbose)
-    output$samples <- samples
+  outputOutput = function(){
+    
+    #Get more info about MCMC run
+    end.time <- Sys.time() 
+    mcmc.info$elapsed.mins <- round(as.numeric(end.time-start.time,units="mins"),digits=3)
+    date <- start.time
+    
+    #Reorganize JAGS output to match input parameter order
+    samples_output <- order.params(samples,parameters.to.save,DIC,verbose=verbose)
+    
+    #Convert rjags output to jagsUI form 
+    output <- process.output(samples_output,DIC=DIC,codaOnly,verbose=verbose) 
+    if(is.null(output)){
+      output <- list()
+      samples_output <- order.params(samples,parameters.to.save,DIC,verbose=verbose)
+      output$samples <- samples_output
+      output$model <- mod
+      output$n.cores <- n.cores
+      class(output) <- 'jagsUIbasic'
+      return(output)
+    }
+    
+    #Add additional information to output list
+    
+    #Summary
+    output$summary <- summary.matrix(output,samples_output,n.chains,codaOnly)
+    
+    output$samples <- samples_output
+    output$modfile <- model.file
+    #If user wants to save input data/inits
+    if(store.data){
+      output$inits <- inits
+      output$data <- data
+    } 
     output$model <- mod
-    output$n.cores <- n.cores
-    class(output) <- 'jagsUIbasic'
-    return(output)
+    output$parameters <- parameters.to.save
+    output$mcmc.info <- mcmc.info
+    output$run.date <- date
+    output$random.seed <- seed
+    output$parallel <- parallel
+    output$bugs.format <- bugs.format
+    output$calc.DIC <- DIC
+    
+    #Classify final output object
+    class(output) <- 'jagsUI'
+    
+    save(output, file = paste0(savePath, fileTemplate, index, '.Rdata'))
+    
   }
-
-  #Add additional information to output list
   
-  #Summary
-  output$summary <- summary.matrix(output,samples,n.chains,codaOnly)
-  
-  output$samples <- samples
-  output$modfile <- model.file
-  #If user wants to save input data/inits
-  if(store.data){
-    output$inits <- inits
-    output$data <- data
-  } 
-  output$model <- mod
-  output$parameters <- parameters.to.save
-  output$mcmc.info <- mcmc.info
-  output$run.date <- date
-  output$random.seed <- seed
-  output$parallel <- parallel
-  output$bugs.format <- bugs.format
-  output$calc.DIC <- DIC
-  
-  #Classify final output object
-  class(output) <- 'jagsUI'
   
   return(output)
-  
-  
-  
-  
-  
-  
   
   
 }
