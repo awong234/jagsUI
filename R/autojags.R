@@ -185,6 +185,9 @@ autojags <- function(data,inits=NULL,parameters.to.save,model.file,n.chains,n.ad
     
     # Save backup here, normally where loop ends
     save(list = ls(all.names = TRUE), file = paste0(savePath, 'latestBackup.Rdata'), envir = environment())
+
+    # output summary here
+    outputOutput()
     
   } # End while 
   
