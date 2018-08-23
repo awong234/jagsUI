@@ -1,7 +1,8 @@
 
 autojags <- function(data,inits=NULL,parameters.to.save,model.file,n.chains,n.adapt=NULL,iter.increment=1000,n.burnin=0,n.thin=1,
                      save.all.iter=FALSE,modules=c('glm'),factories=NULL,parallel=FALSE,n.cores=NULL,DIC=TRUE,store.data=FALSE,codaOnly=FALSE,seed=NULL,
-                    bugs.format=FALSE,Rhat.limit=1.1,max.iter=100000,verbose=TRUE){
+                    bugs.format=FALSE,Rhat.limit=1.1,max.iter=100000,verbose=TRUE,
+                    continue = FALSE, savePath, fileTemplate){
   
   if(!continue){
     #Pass input data and parameter list through error check / processing
