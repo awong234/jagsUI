@@ -1,3 +1,52 @@
+outputOutput = function(){
+  
+  #Get more info about MCMC run
+  end.time <- Sys.time() 
+  mcmc.info$elapsed.mins <- round(as.numeric(end.time-start.time,units="mins"),digits=3)
+  date <- start.time
+  
+  #Reorganize JAGS output to match input parameter order
+  samples_output <- order.params(samples,parameters.to.save,DIC,verbose=verbose)
+  
+  #Convert rjags output to jagsUI form 
+  output <- process.output(samples_output,DIC=DIC,codaOnly,verbose=verbose) 
+  if(is.null(output)){
+    output <- list()
+    samples_output <- order.params(samples,parameters.to.save,DIC,verbose=verbose)
+    output$samples <- samples_output
+    output$model <- mod
+    output$n.cores <- n.cores
+    class(output) <- 'jagsUIbasic'
+    return(output)
+  }
+  
+  #Add additional information to output list
+  
+  #Summary
+  output$summary <- summary.matrix(output,samples_output,n.chains,codaOnly)
+  
+  output$samples <- samples_output
+  output$modfile <- model.file
+  #If user wants to save input data/inits
+  if(store.data){
+    output$inits <- inits
+    output$data <- data
+  } 
+  output$model <- mod
+  output$parameters <- parameters.to.save
+  output$mcmc.info <- mcmc.info
+  output$run.date <- date
+  output$random.seed <- seed
+  output$parallel <- parallel
+  output$bugs.format <- bugs.format
+  output$calc.DIC <- DIC
+  
+  #Classify final output object
+  class(output) <- 'jagsUI'
+  
+  save(output, file = paste0(savePath, fileTemplate, index, '.Rdata'))
+  
+}
 
 autojags <- function(data,inits=NULL,parameters.to.save,model.file,n.chains,n.adapt=NULL,iter.increment=1000,n.burnin=0,n.thin=1,
                      save.all.iter=FALSE,modules=c('glm'),factories=NULL,parallel=FALSE,n.cores=NULL,DIC=TRUE,store.data=FALSE,codaOnly=FALSE,seed=NULL,
@@ -139,55 +188,6 @@ autojags <- function(data,inits=NULL,parameters.to.save,model.file,n.chains,n.ad
     
   } # End while 
   
-  outputOutput = function(){
-    
-    #Get more info about MCMC run
-    end.time <- Sys.time() 
-    mcmc.info$elapsed.mins <- round(as.numeric(end.time-start.time,units="mins"),digits=3)
-    date <- start.time
-    
-    #Reorganize JAGS output to match input parameter order
-    samples_output <- order.params(samples,parameters.to.save,DIC,verbose=verbose)
-    
-    #Convert rjags output to jagsUI form 
-    output <- process.output(samples_output,DIC=DIC,codaOnly,verbose=verbose) 
-    if(is.null(output)){
-      output <- list()
-      samples_output <- order.params(samples,parameters.to.save,DIC,verbose=verbose)
-      output$samples <- samples_output
-      output$model <- mod
-      output$n.cores <- n.cores
-      class(output) <- 'jagsUIbasic'
-      return(output)
-    }
-    
-    #Add additional information to output list
-    
-    #Summary
-    output$summary <- summary.matrix(output,samples_output,n.chains,codaOnly)
-    
-    output$samples <- samples_output
-    output$modfile <- model.file
-    #If user wants to save input data/inits
-    if(store.data){
-      output$inits <- inits
-      output$data <- data
-    } 
-    output$model <- mod
-    output$parameters <- parameters.to.save
-    output$mcmc.info <- mcmc.info
-    output$run.date <- date
-    output$random.seed <- seed
-    output$parallel <- parallel
-    output$bugs.format <- bugs.format
-    output$calc.DIC <- DIC
-    
-    #Classify final output object
-    class(output) <- 'jagsUI'
-    
-    save(output, file = paste0(savePath, fileTemplate, index, '.Rdata'))
-    
-  }
   
   
   return(output)
