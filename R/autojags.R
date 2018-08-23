@@ -185,6 +185,8 @@ autojags <- function(data,inits=NULL,parameters.to.save,model.file,n.chains,n.ad
     
     save(output, file = paste0(savePath, fileTemplate, index, ".Rdata"))
     
+    rm(list = c("output", "samples_output", "date"))
+    
     
   } # End while 
   
