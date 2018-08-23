@@ -51,8 +51,8 @@ outputOutput = function(){
 autojags <- function(data,inits=NULL,parameters.to.save,model.file,n.chains,n.adapt=NULL,iter.increment=1000,n.burnin=0,n.thin=1,
                      save.all.iter=FALSE,modules=c('glm'),factories=NULL,parallel=FALSE,n.cores=NULL,DIC=TRUE,store.data=FALSE,codaOnly=FALSE,seed=NULL,
                     bugs.format=FALSE,Rhat.limit=1.1,max.iter=100000,verbose=TRUE,
-                    continue = FALSE, savePath, fileTemplate){
-  
+                    continue = FALSE, savePath, fileTemplate, debug = F){
+  if(debug){browser}
   if(!continue){
     #Pass input data and parameter list through error check / processing
     data.check <- process.input(data,parameters.to.save,inits,n.chains,(n.burnin + iter.increment),
@@ -115,7 +115,7 @@ autojags <- function(data,inits=NULL,parameters.to.save,model.file,n.chains,n.ad
       if(verbose){cat('\nMaximum iterations reached.\n\n')}
     }
     # Save backup here
-    save.image(file = 'latestBackup.Rdata')
+    save(list = ls(all.names = TRUE), file = paste0(savePath, 'latestBackup.Rdata'), envir = environment())
     
   } else {
    
@@ -184,7 +184,7 @@ autojags <- function(data,inits=NULL,parameters.to.save,model.file,n.chains,n.ad
     }
     
     # Save backup here, normally where loop ends
-    save.image(file = paste0(savePath, 'latestBackup.Rdata'))
+    save(list = ls(all.names = TRUE), file = paste0(savePath, 'latestBackup.Rdata'), envir = environment())
     
   } # End while 
   
