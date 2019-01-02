@@ -1,6 +1,19 @@
 jagsUI
 ==========
 
+# Fork info
+
+Markov Chain Monte Carlo iterations are, as the name implies, stochastically dependent upon previous samples drawn from the posterior distribution in a Markov fashion. The `autojags` function allows a check of the diagnostic Rubin-Gelman test at breakpoints specified by the user. However, given that these breakpoints exist, it should be possible to save the state of the MCMC chain to resume at a later time, in the case of power outages, for example. This fork modifies `autojags.R` to provide start/stop functionality and MCMC chain backups for the `autojags()` function. Major differences include:
+
+* Argument `continue` allows user to continue based of MCMC chain backup file, saved as a simple `.Rdata` file in the working directory. Setting `continue == F` is identical to running `autojags()` as normal.
+* Argument `savePath` allows user to specify path to save backup file save path.
+* Argument `fileTemplate` allows users to specify the name of the output MCMC objects.
+* MCMC chain states at every check are saved, no different functionality implemented at this time.
+
+NOTE: While this fork was used successfully in my thesis analysis, I make no guarantee of flawless function. Observed bugs include improper assignment or structure of DIC variable causing error in the print method for `jagsUI` summaries. The calculated DIC is still accessible within the output file, however.
+
+# Continue readme
+
 This package runs JAGS (Just Another Gibbs Sampler) analyses from within R. It acts as a wrapper and alternative interface for the functions in the rjags package and adds some custom output and graphical options. 
 
 There are several other similar packages (R2jags, runjags, and of course rjags itself). I wrote this one to allow tighter control over the JAGS adaptive and burn-in periods (see the issue described here: http://stats.stackexchange.com/questions/45193/r2jags-does-not-remove-the-burn-in-part-sometimes) and to simplify other common tasks such as formatting data, plotting results, and running chains in parallel.
